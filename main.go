@@ -40,11 +40,16 @@ func run() error {
 		return fmt.Errorf("failed to sign token: %w", err)
 	}
 
-	fmt.Println(token)
-
-	if opts.PrintPayload {
-		printDebugPayload(kid, header, claims, encodedHeader, encodedClaims)
+	if opts.Verbose {
+		printAssertionDetails(token, kid, header, claims, encodedHeader, encodedClaims)
 	}
+
+	accessToken, err := exchangeToken(opts, token)
+	if err != nil {
+		return fmt.Errorf("failed to exchange token: %w", err)
+	}
+
+	fmt.Println(accessToken)
 
 	return nil
 }
@@ -62,13 +67,16 @@ func parseOptions() options {
 	flag.BoolVar(&opts.IncludeNBF, "nbf", true, "Include nbf")
 	flag.BoolVar(&opts.IncludeIAT, "iat", true, "Include iat")
 	flag.IntVar(&opts.GraceSeconds, "grace", 120, "Grace period in seconds for nbf")
-	flag.BoolVar(&opts.PrintPayload, "print-payload", false, "Print decoded header and payload")
+	flag.BoolVar(&opts.Verbose, "verbose", false, "Print the client assertion details to stderr")
 	flag.Parse()
 
 	return opts
 }
 
-func printDebugPayload(kid string, header jwtHeader, claims jwtClaims, encodedHeader, encodedClaims string) {
+func printAssertionDetails(token, kid string, header jwtHeader, claims jwtClaims, encodedHeader, encodedClaims string) {
+	fmt.Fprintln(os.Stderr, "Client assertion:")
+	fmt.Fprintln(os.Stderr, token)
+	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "kid:", kid)
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Header:")

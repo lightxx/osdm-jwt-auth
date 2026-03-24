@@ -16,7 +16,7 @@ type options struct {
 	IncludeNBF      bool
 	IncludeIAT      bool
 	GraceSeconds    int
-	PrintPayload    bool
+	Verbose         bool
 }
 
 func (o options) Validate() error {
