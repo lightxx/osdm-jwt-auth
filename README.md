@@ -10,6 +10,8 @@ ACCESS_TOKEN="$(./osdm-jwt-auth ...)"
 
 If you pass `-verbose`, the tool writes the intermediate client assertion and decoded assertion details to stderr while keeping stdout clean for the final access token.
 
+You can either download the binaries from the latest release package (automatically created by a github runner), or, like you should with everything crypto related, build it yourself. See instructions below. 
+
 ## Requirements
 
 - Go `1.26.1` or compatible

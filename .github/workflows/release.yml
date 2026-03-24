@@ -1,0 +1,84 @@
+name: Build Release Binaries
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            archive: tar.gz
+            ext: ""
+          - goos: darwin
+            goarch: arm64
+            archive: tar.gz
+            ext: ""
+          - goos: windows
+            goarch: amd64
+            archive: zip
+            ext: .exe
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: |
+          mkdir -p dist
+          binary="osdm-jwt-auth${{ matrix.ext }}"
+          out_dir="dist/osdm-jwt-auth-${{ github.event.release.tag_name }}-${{ matrix.goos }}-${{ matrix.goarch }}"
+          mkdir -p "$out_dir"
+          go build -trimpath -ldflags="-s -w" -o "$out_dir/$binary" .
+          cp README.md LICENSE "$out_dir/"
+
+      - name: Package archive
+        run: |
+          cd dist
+          base="osdm-jwt-auth-${{ github.event.release.tag_name }}-${{ matrix.goos }}-${{ matrix.goarch }}"
+          if [ "${{ matrix.archive }}" = "zip" ]; then
+            zip -r "${base}.zip" "${base}"
+          else
+            tar -czf "${base}.tar.gz" "${base}"
+          fi
+
+      - name: Generate checksum
+        run: |
+          cd dist
+          base="osdm-jwt-auth-${{ github.event.release.tag_name }}-${{ matrix.goos }}-${{ matrix.goarch }}"
+          if [ "${{ matrix.archive }}" = "zip" ]; then
+            file="${base}.zip"
+          else
+            file="${base}.tar.gz"
+          fi
+          shasum -a 256 "$file" > "${file}.sha256"
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.sha256
