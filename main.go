@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"time"
 )
 
 func main() {
@@ -20,33 +19,18 @@ func run() error {
 		return err
 	}
 
-	key, err := loadRSAPrivateKey(opts.PrivateKeyPath)
-	if err != nil {
-		return fmt.Errorf("failed to load private key: %w", err)
-	}
-
-	kid, err := generateKid(&key.PublicKey)
-	if err != nil {
-		return fmt.Errorf("failed to generate kid: %w", err)
-	}
-
-	header, claims, err := buildTokenParts(opts, kid, time.Now().UTC())
+	svc, err := newTokenService(opts.PrivateKeyPath)
 	if err != nil {
 		return err
 	}
 
-	token, encodedHeader, encodedClaims, err := signJWT(header, claims, key)
-	if err != nil {
-		return fmt.Errorf("failed to sign token: %w", err)
+	if opts.Serve {
+		return runServer(opts, svc)
 	}
 
-	if opts.Verbose {
-		printAssertionDetails(token, kid, header, claims, encodedHeader, encodedClaims)
-	}
-
-	accessToken, err := exchangeToken(opts, token)
+	accessToken, err := svc.exchange(opts, opts.Verbose)
 	if err != nil {
-		return fmt.Errorf("failed to exchange token: %w", err)
+		return err
 	}
 
 	fmt.Println(accessToken)
@@ -67,6 +51,8 @@ func parseOptions() options {
 	flag.BoolVar(&opts.IncludeNBF, "nbf", true, "Include nbf")
 	flag.BoolVar(&opts.IncludeIAT, "iat", true, "Include iat")
 	flag.IntVar(&opts.GraceSeconds, "grace", 120, "Grace period in seconds for nbf")
+	flag.BoolVar(&opts.Serve, "serve", false, "Run as a local HTTP token service")
+	flag.StringVar(&opts.ListenAddress, "listen", "127.0.0.1:8787", "Listen address for server mode")
 	flag.BoolVar(&opts.Verbose, "verbose", false, "Print the client assertion details to stderr")
 	flag.Parse()
 

@@ -2,6 +2,8 @@
 
 `osdm-jwt-auth` creates a JWT client assertion, exchanges it against an OpenID Connect token endpoint, and prints the returned `access_token` to stdout.
 
+It can also run as a small local HTTP service for tools such as Postman.
+
 The tool is intended for scriptable use:
 
 ```sh
@@ -109,6 +111,8 @@ The tool:
 2. Sends it to the token endpoint using the client credentials flow.
 3. Prints the returned `access_token` to stdout.
 
+In server mode, it exposes `POST /token` and returns the `access_token` as JSON.
+
 ### Flags
 
 - `-key`: path to the RSA private key PEM file
@@ -121,6 +125,8 @@ The tool:
 - `-nbf`: include `nbf` in the assertion
 - `-iat`: include `iat` in the assertion
 - `-grace`: seconds subtracted from `now` when `-nbf` is enabled
+- `-serve`: run a local HTTP token service instead of printing one token to stdout
+- `-listen`: listen address for server mode, default `127.0.0.1:8787`
 - `-verbose`: print the generated client assertion and decoded assertion details to stderr
 
 ## Example: Get an access token
@@ -196,3 +202,106 @@ $ACCESS_TOKEN = .\osdm-jwt-auth.exe `
 
 - Default mode: stdout contains only the exchanged `access_token`
 - Verbose mode: stdout still contains only the `access_token`; stderr additionally shows the generated client assertion plus assertion header and payload details
+
+## Local wrapper for Postman
+
+Run the binary in server mode on your machine:
+
+```sh
+./osdm-jwt-auth \
+  -serve \
+  -listen 127.0.0.1:8787 \
+  -key ./osdm_yvorp_tom_private.pem \
+  -alg RS256
+```
+
+In this mode the binary exposes:
+
+- `GET /healthz`
+- `POST /token`
+
+### `POST /token` request body
+
+All request values can be supplied from Postman variables. If you also pass defaults on the CLI, request values override those defaults.
+
+Example JSON body:
+
+```json
+{
+  "iss": "osdm_test09",
+  "sub": "osdm_test09",
+  "aud": "https://apim-yvorp.om.tsint.at/auth/realms/osdm/protocol/openid-connect/token",
+  "scope": "openid",
+  "lifetime": 300,
+  "alg": "RS256",
+  "nbf": true,
+  "iat": true,
+  "grace": 120
+}
+```
+
+Example response:
+
+```json
+{
+  "access_token": "eyJ..."
+}
+```
+
+### Postman setup
+
+Create environment variables in Postman:
+
+- `jwt_wrapper_url` = `http://127.0.0.1:8787/token`
+- `iss` = `osdm_test09`
+- `sub` = `osdm_test09`
+- `aud` = `https://apim-yvorp.om.tsint.at/auth/realms/osdm/protocol/openid-connect/token`
+- `scope` = `openid`
+- `lifetime` = `300`
+- `alg` = `RS256`
+- `nbf` = `true`
+- `iat` = `true`
+- `grace` = `120`
+
+Add this pre-request script to the collection or request:
+
+```javascript
+pm.sendRequest({
+  url: pm.environment.get('jwt_wrapper_url'),
+  method: 'POST',
+  header: {
+    'Content-Type': 'application/json'
+  },
+  body: {
+    mode: 'raw',
+    raw: JSON.stringify({
+      iss: pm.environment.get('iss'),
+      sub: pm.environment.get('sub'),
+      aud: pm.environment.get('aud'),
+      scope: pm.environment.get('scope'),
+      lifetime: Number(pm.environment.get('lifetime')),
+      alg: pm.environment.get('alg'),
+      nbf: pm.environment.get('nbf') === 'true',
+      iat: pm.environment.get('iat') === 'true',
+      grace: Number(pm.environment.get('grace'))
+    })
+  }
+}, function (err, res) {
+  if (err) {
+    throw err;
+  }
+
+  if (res.code !== 200) {
+    throw new Error('Token request failed: ' + res.text());
+  }
+
+  const payload = res.json();
+  pm.environment.set('access_token', payload.access_token);
+});
+```
+
+Then set your API request authorization header to:
+
+```text
+Authorization: Bearer {{access_token}}
+```
