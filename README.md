@@ -250,6 +250,8 @@ Example response:
 
 ### Postman setup
 
+Either use the supplied Postman collection in this repo, or:
+
 Create environment variables in Postman:
 
 - `jwt_wrapper_url` = `http://127.0.0.1:8787/token`
