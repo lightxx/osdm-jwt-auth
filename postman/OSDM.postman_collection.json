@@ -1,0 +1,116 @@
+{
+  "info": {
+    "_postman_id": "46f9fc00-8832-4aee-9db5-0706133a4e9d",
+    "name": "OSDM",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "32633654"
+  },
+  "item": [
+    {
+      "name": "yvorp",
+      "item": [
+        {
+          "name": "Get Place",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://apim-yvorp.om.tsint.at/osdm/places/urn:x_eva:stn:0000000",
+              "protocol": "https",
+              "host": [
+                "apim-yvorp",
+                "om",
+                "tsint",
+                "at"
+              ],
+              "path": [
+                "osdm",
+                "places",
+                "urn:x_eva:stn:0000000"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{access_token}}",
+            "type": "string"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {},
+            "exec": [
+              "pm.sendRequest({\r",
+              "  url: pm.environment.get('jwt_wrapper_url'),\r",
+              "  method: 'POST',\r",
+              "  header: {\r",
+              "    'Content-Type': 'application/json'\r",
+              "  },\r",
+              "  body: {\r",
+              "    mode: 'raw',\r",
+              "    raw: JSON.stringify({\r",
+              "      iss: pm.environment.get('iss'),\r",
+              "      sub: pm.environment.get('sub'),\r",
+              "      aud: pm.environment.get('aud'),\r",
+              "      scope: pm.environment.get('scope'),\r",
+              "      lifetime: Number(pm.environment.get('lifetime')),\r",
+              "      alg: pm.environment.get('alg'),\r",
+              "      nbf: pm.environment.get('nbf') === 'true',\r",
+              "      iat: pm.environment.get('iat') === 'true',\r",
+              "      grace: Number(pm.environment.get('grace'))\r",
+              "    })\r",
+              "  }\r",
+              "}, function (err, res) {\r",
+              "  if (err) {\r",
+              "    throw err;\r",
+              "  }\r",
+              "\r",
+              "  if (res.code !== 200) {\r",
+              "    throw new Error('Token request failed: ' + res.text());\r",
+              "  }\r",
+              "\r",
+              "  const payload = res.json();\r",
+              "  pm.environment.set('access_token', payload.access_token);\r",
+              "});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {},
+            "exec": [
+              ""
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
